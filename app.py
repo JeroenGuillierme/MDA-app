@@ -159,7 +159,8 @@ def update_chart(rt_threshold, int_dens_threshold, aed_dens_threshold, eps):
     ]
 
     return html.Div(children=[
-        html.P('Hyperparameters chosen for DBSCAN clustering analysis:'),
+        html.P('Hyperparameters chosen for Determining High-Risk-Area Intervention locations'
+               ' and DBSCAN clustering analysis:'),
         html.Ul([html.Li(param) for param in hyper_params])
     ], style={'textAlign': 'left'}), fig
 
