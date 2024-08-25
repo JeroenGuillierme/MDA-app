@@ -11,6 +11,11 @@ import plotly.graph_objs as go
 
 
 def load_data():
+    """
+    Load the dataset containing intervention data from a CSV file from online repository.
+
+    :return: DataFrame containing the intervention data, or None if the data could not be loaded.
+    """
     try:
         url2 = 'https://raw.githubusercontent.com/JeroenGuillierme/Project-MDA/main/Data/'
 
@@ -23,6 +28,15 @@ def load_data():
 
 
 def prepare_data(df, x, y):
+    """
+    Prepare the data for analysis and plotting by calculating the response time,
+    transforming variables, and handling missing values.
+
+    :param df: DataFrame containing the raw data.
+    :param x: Column name to be used for the x-axis in the plots.
+    :param y: Column name to be used for the y-axis in the plots.
+    :return: DataFrame prepared for plotting, with necessary transformations and filtering applied.
+    """
     try:
         # Prepare data for graphs
         df['response_time'] = df['T3-T0']
@@ -52,6 +66,15 @@ def prepare_data(df, x, y):
 
 
 def make_rta_plots(x, y, hue=None):
+    """
+    Generate plots for response time analysis, including a point plot with confidence intervals
+    and a heatmap of pairwise p-values from a Games-Howell test.
+
+    :param x: Column name to be used for the x-axis in the plots.
+    :param y: Column name to be used for the y-axis in the plots.
+    :param hue: Optional; column name to be used for color encoding in the scatter plot.
+    :return: Plotly figure object containing the generated plots.
+    """
     # Get data
     df = load_data()
     rta_df = prepare_data(df, x=x, y=y)

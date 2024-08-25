@@ -15,10 +15,16 @@ from scipy.spatial import ConvexHull
 
 
 def load_data():
-    '''
+    """
+    Loads the required datasets for the analysis.
 
     :return:
-    '''
+        - gdf_interventions_with_both_count (pd.DataFrame): A dataframe containing intervention data with incident counts and AED counts.
+        - belgium_with_provinces_boundary (gpd.GeoDataFrame): A GeoDataFrame containing the geographical boundaries of Belgian provinces.
+        - aed_data (pd.DataFrame): A dataframe containing data on AED (Automated External Defibrillator) locations.
+
+    """
+
     try:
         url2 = 'https://raw.githubusercontent.com/JeroenGuillierme/Project-MDA/main/Data/'
 
@@ -26,22 +32,29 @@ def load_data():
             f'{url2}gdf_interventions.csv')
         # Load Belgium with regions shapefile
         belgium_with_provinces_boundary = gpd.read_file(f'{url2}BELGIUM_-_Provinces.geojson')
+        
+        df = pd.read_csv(f'{url2}total_df_with_distances.csv')
+        aed_data = df[df['AED'] == 1].reset_index(drop=True)
 
     except:
         gdf_interventions_with_both_count = None
         belgium_with_provinces_boundary = None
 
-    return gdf_interventions_with_both_count, belgium_with_provinces_boundary
+    return gdf_interventions_with_both_count, belgium_with_provinces_boundary, aed_data
 
 
 def high_risk_areas(response_time_threshold=8, incident_density_threshold=5, aed_density_threshold=5):
-    '''
+    """
+    Identify high-risk areas based on thresholds.
 
-    :param response_time_threshold:
-    :param incident_density_threshold:
-    :param aed_density_threshold:
-    :return:
-    '''
+    This function filters the intervention data to identify high-risk areas where the response time is above the
+    threshold, the incident density is above the threshold, and the AED density is below the threshold.
+
+    :param response_time_threshold: (int) The response time threshold in minutes. Default is 8 minutes.
+    :param incident_density_threshold: (int) The minimum incident density to qualify as a high-risk area. Default is 5.
+    :param aed_density_threshold: (int) The maximum AED density for a location to be considered high-risk. Default is 5.
+    :return: pd.DataFrame containing the latitude and longitude of identified high-risk areas.
+    """
     gdf = load_data()[0]
     hra = gdf.loc[
           (gdf['T3-T0'] > response_time_threshold) &
@@ -57,13 +70,22 @@ def high_risk_areas(response_time_threshold=8, incident_density_threshold=5, aed
 
 
 def dbscan(df, min_samples=4, eps=0.023):
-    '''
+    """
+    Apply DBSCAN clustering to the high-risk areas.
 
-    :param df:
-    :param min_samples:
-    :param eps:
+    This function applies the DBSCAN clustering algorithm to the identified high-risk areas to find clusters and
+    their centers. It also calculates the silhouette coefficient to evaluate clustering performance.
+
+    :param df: pd.DataFrame containing the latitude and longitude of high-risk areas.
+    :param min_samples: (int) The minimum number of samples required to form a cluster. Default is 4.
+    :param eps: (float) The maximum distance between two samples for them to be considered as in the
+                same neighborhood. Default is 0.023.
     :return:
-    '''
+        - df_filtered (pd.DataFrame): Dataframe with clustered high-risk areas.
+        - df_noise (pd.DataFrame): Dataframe with noise points that were not assigned to any cluster.
+        - clusters_df (pd.DataFrame): Dataframe with cluster centers and their sizes.
+        - silhouette_coefficient (float): The silhouette score of the clustering.
+    """
 
     # Initialize DBSCAN
     clustering = DBSCAN(eps=eps, min_samples=min_samples)
@@ -94,10 +116,13 @@ def dbscan(df, min_samples=4, eps=0.023):
 
 
 def geom_belgium():
-    '''
+    """
+    Calculates the geographic centroid of Belgium based on its provinces' boundaries.
 
     :return:
-    '''
+        - mean_lat (float): The latitude of the centroid.
+        - mean_lon (float): The longitude of the centroid.
+    """
     belgium_with_provinces_boundary = load_data()[1]
     # Re-project to a suitable projected CRS (e.g., UTM zone 31N for Belgium)
     belgium_proj = belgium_with_provinces_boundary.to_crs(epsg=32631)
@@ -113,12 +138,16 @@ def geom_belgium():
 
 
 def find_neighbours(df, n_neighbours):
-    '''
+    """
+    Find the k-nearest neighbors of each point in the dataframe.
 
-    :param df:
-    :param n_neighbours:
-    :return:
-    '''
+    This function calculates the distances to the k-nearest neighbors for each point in the dataframe, sorting them
+    in ascending order.
+
+    :param df: pd.DataFrame containing the latitude and longitude of the points.
+    :param n_neighbours: (int) The number of nearest neighbors to find for each point.
+    :return: np.ndarray containing the sorted distances to the 4th nearest neighbor for each point.
+    """
     neighbors = NearestNeighbors(n_neighbors=n_neighbours)
     neighbors_fit = neighbors.fit(df)
 
@@ -136,15 +165,20 @@ def find_neighbours(df, n_neighbours):
 
 def make_aed_plots(response_time_threshold=8, incident_density_threshold=5, aed_density_threshold=5,
                    dbscan_min_samples=4, dbscan_eps=0.023):
-    '''
+    """
+    Create visualizations for AED analysis.
 
-    :param response_time_threshold:
-    :param incident_density_threshold:
-    :param aed_density_threshold:
-    :param dbscan_min_samples:
-    :param dbscan_eps:
-    :return:
-    '''
+    This function generates a set of visualizations, including a k-NN distance plot, a bar plot of cluster sizes, a
+    map of high-risk areas with cluster centers, and an evaluation metric plot (silhouette score).
+
+    :param response_time_threshold: (int, optional) The response time threshold in minutes. Default is 8 minutes.
+    :param incident_density_threshold: (int, optional) The minimum incident density to qualify as a high-risk area. Default is 5.
+    :param aed_density_threshold: (int, optional) The maximum AED density for a location to be considered high-risk. Default is 5.
+    :param dbscan_min_samples: (int, optional) The minimum number of samples required to form a cluster using DBSCAN. Default is 4.
+    :param dbscan_eps: (float, optional) The maximum distance between two samples for them to be considered as in the
+                       same neighborhood using DBSCAN. Default is 0.023.
+    :return: Plotly figure object containing the visualizations.
+    """
 
     df = high_risk_areas(response_time_threshold=response_time_threshold,
                          incident_density_threshold=incident_density_threshold,
@@ -188,7 +222,7 @@ def make_aed_plots(response_time_threshold=8, incident_density_threshold=5, aed_
                   name='Threshold',
                   row=1, col=1)
 
-    # Second Plot: Barplot of Cluster Sizes
+    # Second Plot: Bar plot of Cluster Sizes
     # --------------------------------------
 
     # Get unique clusters
@@ -216,10 +250,31 @@ def make_aed_plots(response_time_threshold=8, incident_density_threshold=5, aed_
     )
     fig.add_trace(barplot, row=1, col=2)
 
-    # Third Plot: Map of High Risk Areas and Cluster Centers
-    # --------------------------------------------------------
+    # Third Plot: Map of High Risk Areas and Cluster Centers (and AEDs)
+    # ------------------------------------------------------------------
 
-    # Cluster centers
+    # Add already existing AED locations to map
+    aed_locations = load_data()[2]
+
+    lat = aed_locations['Latitude']
+    lon = aed_locations['Longitude']
+
+    aeds = go.Scattermapbox(
+        lon=lon,
+        lat=lat,
+        mode='markers',
+        marker=go.scattermapbox.Marker(
+            size=4,
+            color='grey',
+            opacity=0.6
+        ),
+        name='AED Location',
+        hovertext=[f'Current AED Location: ({lat[i]}°, {lon[i]}°)' for i in range(len(aed_locations))],
+        hoverinfo='text'
+    )
+    fig.add_trace(aeds, row=2, col=1)
+
+    # Add Cluster centers
     lat = clusters_df['Latitude']
     lon = clusters_df['Longitude']
     sizes = np.asarray(clusters_df['size'])
@@ -292,7 +347,7 @@ def make_aed_plots(response_time_threshold=8, incident_density_threshold=5, aed_
     lat = df_noise['Latitude']
     lon = df_noise['Longitude']
 
-    # Plot the cluster centers in red
+    # Plot the noise points in black
     noise_points = go.Scattermapbox(
         lon=lon,
         lat=lat,
@@ -307,6 +362,7 @@ def make_aed_plots(response_time_threshold=8, incident_density_threshold=5, aed_
         hoverinfo='text'
     )
     fig.add_trace(noise_points, row=2, col=1)
+
 
     # Fourth Plot: Silhouette score
     # -------------------------------
